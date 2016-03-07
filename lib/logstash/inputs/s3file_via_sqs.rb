@@ -49,6 +49,30 @@ class LogStash::Inputs::S3File_Via_Sqs < LogStash::Inputs::Base
   # The AWS account number for the SQS queue (get queue url)
   config :aws_queue_owner_id, :validate => :string
 
+  # The AWS Region
+  config :region, :validate => LogStash::PluginMixins::AwsConfig::REGIONS_ENDPOINT, :default => LogStash::PluginMixins::AwsConfig::US_EAST_1
+
+  # This plugin uses the AWS SDK and supports several ways to get credentials, which will be tried in this order...
+  # 1. Static configuration, using `access_key_id` and `secret_access_key` params in logstash plugin config
+  # 2. External credentials file specified by `aws_credentials_file`
+  # 3. Environment variables `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
+  # 4. Environment variables `AMAZON_ACCESS_KEY_ID` and `AMAZON_SECRET_ACCESS_KEY`
+  # 5. IAM Instance Profile (available when running inside EC2)
+  config :access_key_id, :validate => :string
+
+  # The AWS Secret Access Key
+  config :secret_access_key, :validate => :string
+
+  # Path to YAML file containing a hash of AWS credentials.
+  # This file will only be loaded if `access_key_id` and
+  # `secret_access_key` aren't set. The contents of the
+  # file should look like this:
+  #
+  #     :access_key_id: "12345"
+  #     :secret_access_key: "54321"
+  #
+  config :aws_credentials_file, :validate => :string
+
   # Where to write the since database (keeps track of the date
   # the last handled file was added to S3). The default will write
   # sincedb files to some path matching "$HOME/.sincedb*"
@@ -75,6 +99,7 @@ public
       # region, access_key_id, secret_access_key, use_ssl, aws_credentials_file
 
       if @assume_role_arn
+      require 'pry'; binding.pry
         @sts = Aws::STS::Client.new(aws_options_hash)
         @iam = Aws::IAM::Client.new(aws_options_hash)
         @sqs_owner_info = {queue_owner_aws_account_id: @aws_queue_owner_id}
@@ -204,12 +229,11 @@ private
       role_arn: @assume_role_arn,
       role_session_name: "#{SecureRandom.hex}"
     )
+    credentials_config = {credentials: role_credentials, region: @region}
+    @logger.debug("AWS AssumeRoleCredentials: #{credentials_config}")
 
-    @logger.debug("AWS AssumeRoleCredentials: #{role_credentials}")
-
-    Aws.config.update({credentials: credentials})
-    @s3 = Aws::S3::Client.new(credentials: role_credentials)
-    @sqs = Aws::SQS::Client.new(credentials: role_credentials)
+    @s3 = Aws::S3::Client.new(credentials_config)
+    @sqs = Aws::SQS::Client.new(credentials_config)
 
   rescue Aws::SQS::Errors::ServiceError, Aws::S3::Errors::ServiceError, Aws::STS::Errors::ServiceError, StandardError => e
     @logger.error("Error getting temp credentials:", :error => e)
