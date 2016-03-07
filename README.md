@@ -1,100 +1,96 @@
-# Logstash Plugin
-
-[![Build
-Status](http://build-eu-00.elastic.co/view/LS%20Plugins/view/LS%20Inputs/job/logstash-plugin-input-s3-unit/badge/icon)](http://build-eu-00.elastic.co/view/LS%20Plugins/view/LS%20Inputs/job/logstash-plugin-input-s3-unit/)
+# Logstash S3 Via SQS Plugin
 
 This is a plugin for [Logstash](https://github.com/elastic/logstash).
 
 It is fully free and fully open source. The license is Apache 2.0, meaning you are pretty much free to use it however you want in whatever way.
 
-## Required S3 Permissions
+Pull S3 file names from SQS, Download the files, parse it with Logstash then delete the local file
 
+
+## How to work with this plugin
+[Configure event notification on S3 bucket for put operations to send the newly added file to SQS designated queue](https://aws.amazon.com/blogs/aws/s3-event-notification)
+
+## Required S3 Permissions
 This plugin reads from your S3 bucket, and would require the following
 permissions applied to the AWS IAM Policy being used:
 
 * `s3:ListBucket` to check if the S3 bucket exists and list objects in it.
 * `s3:GetObject` to check object metadata and download objects from S3 buckets.
 
-You might also need `s3:DeleteObject` when setting S3 input to delete on read.
-And the `s3:CreateBucket` permission to create a backup bucket unless already
-exists.
+## Requires SQS Permissions
+The "consumer" identity must have the following permissions on the queue:
 
-For buckets that have versioning enabled, you might need to add additional
-permissions.
+  * `sqs:ChangeMessageVisibility`
+  * `sqs:ChangeMessageVisibilityBatch`
+  * `sqs:DeleteMessage`
+  * `sqs:DeleteMessageBatch`
+  * `sqs:GetQueueAttributes`
+  * `sqs:GetQueueUrl`
+  * `sqs:ListQueues`
+  * `sqs:ReceiveMessage``
 
-More information about S3 permissions can be found at -
-  http://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html
-
-## Documentation
-
-Logstash provides infrastructure to automatically generate documentation for this plugin. We use the asciidoc format to write documentation so any comments in the source code will be first converted into asciidoc and then into html. All plugin documentation are placed under one [central location](http://www.elastic.co/guide/en/logstash/current/).
-
-- For formatting code or config example, you can use the asciidoc `[source,ruby]` directive
-- For more asciidoc formatting tips, see the excellent reference here https://github.com/elastic/docs#asciidoc-guide
-
-## Need Help?
-
-Need help? Try #logstash on freenode IRC or the https://discuss.elastic.co/c/logstash discussion forum.
-
-## Developing
-
-### 1. Plugin Developement and Testing
-
-#### Code
-- To get started, you'll need JRuby with the Bundler gem installed.
-
-- Create a new plugin or clone and existing from the GitHub [logstash-plugins](https://github.com/logstash-plugins) organization. We also provide [example plugins](https://github.com/logstash-plugins?query=example).
-
-- Install dependencies
-```sh
-bundle install
+ Typically, you should setup an IAM policy, create a user and apply the IAM policy to the user.
+ A sample policy is as follows:
+````json
+     {
+       "Statement": [
+         {
+           "Action": [
+             "sqs:ChangeMessageVisibility",
+             "sqs:ChangeMessageVisibilityBatch",
+             "sqs:GetQueueAttributes",
+             "sqs:GetQueueUrl",
+             "sqs:ListQueues",
+             "sqs:SendMessage",
+             "sqs:SendMessageBatch"
+           ],
+           "Effect": "Allow",
+           "Resource": [
+             "arn:aws:sqs:us-east-1:123456789012:Logstash"
+           ]
+         }
+       ]
+     }
+````
+[This plugin supports cross account access with assume role](https://blogs.aws.amazon.com/security/post/Tx70F69I9G8TYG/How-to-enable-cross-account-access-to-the-AWS-Management-Console)
+## Requires STS Permissions
+```json
+"AssumeRolePolicyDocument" : {
+    "Version" : "2012-10-17",
+    "Statement" : [ {
+      "Effect" : "Allow",
+      "Principal" : {
+        "Service" : [ "ec2.amazonaws.com" ]
+      },
+      "Action" : [ "sts:AssumeRole" ]
+    } ]
+}
 ```
 
-#### Test
+## Installing
+clone the repository
+gem build logstash-input-s3file-via-sqs.gemspec
+./bin/plugin install logstash-input-s3file-via-sqs-1.0.0.gem
 
-- Update your dependencies
-
-```sh
-bundle install
-```
-
-- Run tests
-
-```sh
-bundle exec rspec
-```
-
-### 2. Running your unpublished Plugin in Logstash
-
-#### 2.1 Run in a local Logstash clone
-
-- Edit Logstash `Gemfile` and add the local plugin path, for example:
+## Plugin Configuration Options
 ```ruby
-gem "logstash-filter-awesome", :path => "/your/local/logstash-filter-awesome"
-```
-- Install plugin
-```sh
-bin/plugin install --no-verify
-```
-- Run Logstash with your plugin
-```sh
-bin/logstash -e 'filter {awesome {}}'
-```
-At this point any modifications to the plugin code will be applied to this local Logstash setup. After modifying the plugin, simply rerun Logstash.
+input {
+    s3fileviasqs {
+        queue => "LogsSomeQueue"
+        assume_role_arn => "arn:aws:iam::123456789012:role/Logstash-CrossAccount-Role"
+        aws_queue_owner_id => "123456789012"
+        temporary_directory => "/some/temporary/download/path"
+    }
+}
 
-#### 2.2 Run in an installed Logstash
-
-You can use the same **2.1** method to run your plugin in an installed Logstash by editing its `Gemfile` and pointing the `:path` to your local plugin development directory or you can build the gem and install it using:
-
-- Build your plugin gem
-```sh
-gem build logstash-filter-awesome.gemspec
 ```
-- Install the plugin from the Logstash home
-```sh
-bin/plugin install /your/local/plugin/logstash-filter-awesome.gem
-```
-- Start Logstash and proceed to test the plugin
+
+ * `polling_frequency - how often to pull from SQS (number) in seconds`
+ * `assume_role_arn - the full cross acount IAM roll arn like "arn:aws:iam::123456789012:role/Logstash-CrossAccount-Role"`
+ * `queue - queue name`
+ * `aws_queue_owner_id - the aws account id like 123456789012`
+ * `temporary_directory - where to save the downloaded files`
+
 
 ## Contributing
 
