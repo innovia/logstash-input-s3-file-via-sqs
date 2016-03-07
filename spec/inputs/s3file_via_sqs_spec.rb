@@ -1,6 +1,6 @@
 # encoding: utf-8
 require "logstash/devutils/rspec/spec_helper"
-require "logstash/inputs/S3FileViaSqs"
+require "logstash/inputs/S3File_Via_Sqs"
 require "logstash/errors"
 require "logstash/event"
 require "logstash/json"
@@ -11,7 +11,7 @@ require "fileutils"
 require "ostruct"
 
 
-describe LogStash::Inputs::S3FileViaSqs do
+describe LogStash::Inputs::S3File_Via_Sqs do
   let(:queue_name) { "the-infinite-pandora-box" }
   let(:queue_url) { "https://sqs.test.local/#{queue_name}" }
 
@@ -31,7 +31,7 @@ describe LogStash::Inputs::S3FileViaSqs do
     Thread.abort_on_exception = true
   end
 
-  let(:input) { LogStash::Inputs::S3FileViaSqs.new(config) }
+  let(:input) { LogStash::Inputs::S3File_Via_Sqs.new(config) }
 
   subject { input }
 
@@ -63,7 +63,7 @@ describe LogStash::Inputs::S3FileViaSqs do
 
 
   describe "#setup_tmp_dir" do
-    subject { LogStash::Inputs::S3FileViaSqs.new(config) }
+    subject { LogStash::Inputs::S3File_Via_Sqs.new(config) }
 
     context "create temporary directory" do
       let(:temporary_directory) { Stud::Temporary.pathname }
@@ -75,7 +75,7 @@ describe LogStash::Inputs::S3FileViaSqs do
   end
 
   describe '#get_temp_credentials' do
-    subject { LogStash::Inputs::S3FileViaSqs.new(config) }
+    subject { LogStash::Inputs::S3File_Via_Sqs.new(config) }
 
     before do
       expect(Aws::STS::Client).to receive(:new).and_return(mock_sts)

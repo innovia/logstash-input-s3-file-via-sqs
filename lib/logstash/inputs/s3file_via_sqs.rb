@@ -14,7 +14,7 @@ require 'securerandom'
 #
 # Each line from each file generates an event.
 # Files ending in `.gz` are handled as gzip'ed files.
-class LogStash::Inputs::S3FileViaSqs < LogStash::Inputs::Base
+class LogStash::Inputs::S3File_Via_Sqs < LogStash::Inputs::Base
   include LogStash::PluginMixins::AwsConfig::V2
   attr_reader :poller, :bucket
 
@@ -26,7 +26,7 @@ class LogStash::Inputs::S3FileViaSqs < LogStash::Inputs::Base
   BACKOFF_FACTOR = 2
   DEFAULT_POLLING_FREQUENCY = 20
 
-  config_name "s3fileviasqs"
+  config_name "s3file_via_sqs"
 
   default :codec, "plain"
 

@@ -75,7 +75,7 @@ gem build logstash-input-s3file-via-sqs.gemspec
 ## Plugin Configuration Options
 ```ruby
 input {
-    s3fileviasqs {
+    s3file_via_sqs {
         queue => "LogsSomeQueue"
         assume_role_arn => "arn:aws:iam::123456789012:role/Logstash-CrossAccount-Role"
         aws_queue_owner_id => "123456789012"
