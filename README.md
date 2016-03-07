@@ -68,9 +68,18 @@ The "consumer" identity must have the following permissions on the queue:
 ```
 
 ## Installing
-clone the repository
+- clone the repository
+```bash
+git clone git@github.com:innovia/logstash-input-s3-file-via-sqs.git
+```
+- build the gem
+```bash
 gem build logstash-input-s3file-via-sqs.gemspec
-./bin/plugin install logstash-input-s3file-via-sqs-1.0.0.gem
+```
+- Install plugin
+```bash
+./bin/plugin install logstash-input-s3file-via-sqs-{VERSION}.gem
+```
 
 ## Plugin Configuration Options
 ```ruby
