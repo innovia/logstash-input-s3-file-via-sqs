@@ -1,10 +1,10 @@
 require "logstash/devutils/rspec/spec_helper"
-require "logstash/inputs/s3"
+require "logstash/inputs/s3FileViaSqs"
 require "aws-sdk"
 require "fileutils"
 require_relative "../support/helpers"
 
-describe LogStash::Inputs::S3, :integration => true, :s3 => true do
+describe LogStash::Inputs::S3FileViaSqs, :integration => true, :s3 => true do
   before do
     Thread.abort_on_exception = true
 
@@ -17,10 +17,10 @@ describe LogStash::Inputs::S3, :integration => true, :s3 => true do
     FileUtils.rm_rf(temporary_directory)
     delete_remote_files(backup_prefix)
   end
-  
+
   let(:temporary_directory) { Stud::Temporary.directory }
   let(:prefix)  { 'logstash-s3-input-prefix/' }
-  
+
   let(:minimal_settings)  {  { "access_key_id" => ENV['AWS_ACCESS_KEY_ID'],
                                "secret_access_key" => ENV['AWS_SECRET_ACCESS_KEY'],
                                "bucket" => ENV['AWS_LOGSTASH_TEST_BUCKET'],
