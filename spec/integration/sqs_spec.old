@@ -1,25 +1,29 @@
 # encoding: utf-8
-require "logstash/inputs/s3file_via_sqs"
+require "logstash/inputs/s3FileViaSqs"
 require "logstash/event"
 require "logstash/json"
 require "aws-sdk"
 require "logstash/devutils/rspec/spec_helper"
+
 require_relative "../support/helpers"
 require "thread"
 
 Thread.abort_on_exception = true
 
-describe "LogStash::Inputs::S3File_Via_Sqs integration", :integration => true do
+describe "LogStash::Inputs::S3FileViaSqs integration", :integration => true do
   let(:decoded_message) { { "drstrange" => "is-he-really-that-strange" } }
   let(:encoded_message) { LogStash::Json.dump(decoded_message) }
   let(:queue) { Queue.new }
 
-  let(:input) { LogStash::Inputs::S3File_Via_Sqs.new(options) }
+  let(:input) { LogStash::Inputs::S3FileViaSqs.new(options) }
 
   context "with invalid credentials" do
     let(:options) do
       {
-        "queue" => "do-not-exist"
+        "queue" => "do-not-exist",
+        "access_key_id" => "bad_access",
+        "secret_access_key" => "bad_secret_key",
+        "region" => ENV["AWS_REGION"]
       }
     end
 
@@ -33,7 +37,7 @@ describe "LogStash::Inputs::S3File_Via_Sqs integration", :integration => true do
   context "with valid credentials" do
     let(:options) do
       {
-        "queue" => "ENV["SQS_QUEUE_NAME"],"
+        "queue" => ENV["SQS_QUEUE_NAME"],
         "access_key_id" => ENV['AWS_ACCESS_KEY_ID'],
         "secret_access_key" => ENV['AWS_SECRET_ACCESS_KEY'],
         "region" => ENV["AWS_REGION"]
@@ -72,6 +76,7 @@ describe "LogStash::Inputs::S3File_Via_Sqs integration", :integration => true do
       it "add the `sent_timestamp`" do
         expect(subject[sent_timestamp_field]).to be_nil
       end
+
     end
 
     context "when the optionals fields are specified" do

@@ -1,3 +1,5 @@
+# encoding: utf-8
+
 def fetch_events(settings)
   queue = []
   s3 = LogStash::Inputs::S3FileViaSqs.new(settings)
@@ -6,9 +8,7 @@ def fetch_events(settings)
   queue
 end
 
-def get_sqs_message
 
-end
 
 def push_sqs_event(message)
   client = Aws::SQS::Client.new
