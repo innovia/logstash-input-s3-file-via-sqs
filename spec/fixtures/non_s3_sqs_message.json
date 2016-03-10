@@ -1,0 +1,11 @@
+{
+  "senderId":"some other message",
+  "Ids":["3fc057ed-9988-4705-b383-6e24f9ccc5bc51da702b-1d4f-4573-8c3e-59768d5f2050"],
+  "createdAt":1456314872122,
+  "os":"android",
+  "message":{
+    "Id":"51ab-4325-bed7-01adb59a59f3",
+    "type":"text",
+    "content":""
+  }
+}

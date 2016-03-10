@@ -80,14 +80,13 @@ class LogStash::Inputs::S3File_Via_Sqs < LogStash::Inputs::Threadable
 
   attr_reader :poller
 
-public
   def register
     require "fileutils"
     require "digest/md5"
     require "aws-sdk"
     require 'securerandom'
 
-    @logger.info("Registering S3 file via SQS input", :queue => @queue)
+    @logger.info("Registering S3file-via-sqs input", :queue => @queue)
 
     setup_tmp_dir
     # aws config options
@@ -113,17 +112,17 @@ public
 
     # Messages are automatically deleted from the queue at the end of the given block.
     @poller = Aws::SQS::QueuePoller.new(queue_url, :client => @sqs)
+    require 'pry'; binding.pry
 
     rescue Aws::SQS::Errors::ServiceError, Aws::S3::Errors::ServiceError, Aws::STS::Errors::ServiceError => e
       @logger.error("AWS init error: ", :error => e)
-      raise LogStash::ConfigurationError, "Verify the AWS configuration and credentials"
+      raise LogStash::ConfigurationError, "Error Registering S3File_Via_Sqs: #{e}"
   end # def register
 
   def setup_tmp_dir
     unless @backup_to_dir.nil?
       Dir.mkdir(@backup_to_dir, 0700) unless File.exists?(@backup_to_dir)
     end
-
     FileUtils.mkdir_p(@temporary_directory) unless Dir.exist?(@temporary_directory)
   end
 
@@ -136,49 +135,80 @@ public
   end
 
   def run(queue)
-    poll_sqs_messages(queue)
-  end # def run
-
-  def poll_sqs_messages(queue)
-    # poll messages from SQS
     @logger.info("Polling SQS messages", :polling_options => polling_options)
     run_with_backoff do
         @poller.poll(polling_options) do |messages, stats|
           counter ||= messages.size
           break if stop?
           if MAX_MESSAGES_TO_FETCH > 1
-            # polling 10 msgs
             @logger.info("Start Polling #{messages.size} messages from SQS - #{Time.now}")
             messages.each { |message|
-                counter = (counter - 1)
-                @logger.debug("now processing message number #{counter}")
-             break if stop?
-              parse_sqs(queue, message)
+              counter = (counter - 1)
+              @logger.debug("now processing message number #{counter}")
+              break if stop?
+              s3_locations = parse_sqs(message)
             }
           else
-            parse_sqs(queue, messages)
+            s3_locations = parse_sqs(messages)
           end
+
 
           @logger.debug("SQS Poller Stats:",
             :request_count => stats.request_count,
             :received_message_count => stats.received_message_count,
             :last_message_received_at => stats.last_message_received_at
           )
+
+          process_log(queue, s3_locations)
+
           @logger.info("Finished processing #{messages.size} messages - #{Time.now}, batch deleting them now from sqs")
         end # @poller
     end # run_with_backoff
   end # def process_files
 
-  def parse_sqs(queue, message)
+  def parse_sqs(message)
     @logger.debug("started processing sqs message #{message}")
-    s3info  = JSON.parse(message.body)
-    s3info['Records'].each { |record|
-      @logger.debug("Message received at #{Time.now}")
-      key =  record['s3']['object']['key']
-      bucket = record['s3']['bucket']['name']
-      @logger.debug("Processing S3 file from s3://#{bucket}/#{key} @ #{Time.now}", :bucket => bucket, :key => key)
-      process_log(queue, {bucket: bucket, key: key})
-    }
+    s3_locations = []
+
+    begin
+      msg = JSON.parse(message.body)
+      if msg.has_key?('Records')
+        msg['Records'].each { |record|
+          @logger.debug("Message received at #{Time.now}")
+          key =  record['s3']['object']['key']
+          bucket = record['s3']['bucket']['name']
+          s3_loc = {:bucket => bucket, :key => key}
+          @logger.debug("Processing S3 file from s3://#{bucket}/#{key} @ #{Time.now}", s3_loc)
+          s3_locations << s3_loc
+        }
+      end
+    rescue Exception => e
+      @logger.error("Error Parsing JSON - The SQS message: #{message} is not a valid JSON string: #{e}")
+    end
+
+    s3_locations
+  end
+
+  def process_log(queue, s3_locations)
+    unless s3_locations.empty?
+      s3_locations.each do |s3_file_info|
+        filename = File.join(temporary_directory, File.basename(s3_file_info[:key]))
+
+        if download_remote_file(s3_file_info[:bucket], s3_file_info[:key], filename)
+          if process_local_log(queue, filename, s3_file_info)
+            lastmod = @s3.get_object(s3_file_info).last_modified # why do we even need this sincedb?
+            @bucket = s3_file_info[:bucket]
+            backup_to_dir(filename)
+
+            @logger.debug("Deleting local donwloaded file ", :local_filename => filename)
+            FileUtils.remove_entry_secure(filename, true)
+            sincedb.write(lastmod)
+          end
+        else
+          FileUtils.remove_entry_secure(filename, true)
+        end
+      end #s3_locations.each
+    end # unless
   end
 
   def backup_to_dir(filename)
@@ -189,8 +219,9 @@ public
 
 
   def get_temp_credentials
-    @logger.debug("Getting temp credentials using the role: #{@assume_role_arn}")
+        require 'pry'; binding.pry
 
+    @logger.debug("Getting temp credentials using the role: #{@assume_role_arn}")
     role_credentials = Aws::AssumeRoleCredentials.new(
       client: @sts,
       role_arn: @assume_role_arn,
@@ -205,7 +236,7 @@ public
 
     rescue Aws::SQS::Errors::ServiceError, Aws::S3::Errors::ServiceError, Aws::STS::Errors::ServiceError, StandardError => e
       @logger.error("Error getting temp credentials:", :error => e)
-      raise LogStash::ConfigurationError, "Verify the AWS configuration and credentials - #{e}"
+      raise LogStash::ConfigurationError, "Error getting temp credentials for assume role - #{e}"
   end
 
   # Runs an AWS request inside a Ruby block with an exponential backoff in case
@@ -361,28 +392,9 @@ public
     end
   end
 
-  def process_log(queue, s3_file_info)
-    filename = File.join(temporary_directory, File.basename(s3_file_info[:key]))
 
-    if download_remote_file(s3_file_info[:bucket], s3_file_info[:key], filename)
-      if process_local_log(queue, filename, s3_file_info)
-        #TODO remove this
-        lastmod = @s3.get_object(s3_file_info).last_modified
-        @bucket = s3_file_info[:bucket]
-        backup_to_dir(filename)
-        @logger.debug("Deleting local donwloaded file ", :local_filename => filename)
-        FileUtils.remove_entry_secure(filename, true)
-        sincedb.write(lastmod)
-      end
-    else
-      FileUtils.remove_entry_secure(filename, true)
-    end
-  end
 
   # Stream the remove file to the local disk
-  #
-  # @param [S3Object] Reference to the remove S3 objec to download
-  # @param [String] The Temporary filename to stream to.
   # @return [Boolean] True if the file was completely downloaded
   def download_remote_file(bucket, key, local_filename)
     completed = false

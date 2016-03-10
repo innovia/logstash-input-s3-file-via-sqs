@@ -1,10 +1,10 @@
 # encoding: utf-8
 
-def fetch_events(settings)
+def fetch_events(config, local_filename, s3_file_info)
   queue = []
   s3 = LogStash::Inputs::S3FileViaSqs.new(settings)
   s3.register
-  s3.process_files(queue)
+  s3.process_local_log(queue, local_filename, s3_file_info)
   queue
 end
 

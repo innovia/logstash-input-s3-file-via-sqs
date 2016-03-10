@@ -1,0 +1,68 @@
+{"Records":[{
+  "eventVersion": "2.0",
+  "eventSource": "aws:s3",
+  "awsRegion": "us-east-1",
+  "eventTime": "2016-03-03T06:37:36.028Z",
+  "eventName": "ObjectCreated:Put",
+  "userIdentity": {
+    "principalId": "principalId"
+  },
+  "requestParameters": {
+    "sourceIPAddress": "192.168.1.2"
+  },
+  "responseElements": {
+    "x-amz-request-id": "1234EEE52E7",
+    "x-amz-id-2": "OZqooOkGW7YCLddGKHw0SgXn6a/SFcvROC82Bx+xAH/xotGz0pxpBNFeE58+gzx4l+02CZdQhf054="
+  },
+  "s3": {
+    "s3SchemaVersion": "1.0",
+    "configurationId": "LogsPublisher",
+    "bucket": {
+      "name": "first-s3-bucket",
+      "ownerIdentity": {
+        "principalId": "principalId"
+      },
+      "arn": "arn:aws:s3:::first-s3-bucket"
+    },
+    "object": {
+      "key": "us-east-1/some/other/folder/first-log-file.gz",
+      "size": 687170,
+      "eTag": "d8142f0f5993b3b77581582e5fa83f62",
+      "sequencer": "0056D7DBAFEEBD7176"
+    }
+  }
+},{
+  "eventVersion": "2.0",
+  "eventSource": "aws:s3",
+  "awsRegion": "us-east-1",
+  "eventTime": "2016-03-03T06:37:36.028Z",
+  "eventName": "ObjectCreated:Put",
+  "userIdentity": {
+    "principalId": "principalId"
+  },
+  "requestParameters": {
+    "sourceIPAddress": "192.168.1.5"
+  },
+  "responseElements": {
+    "x-amz-request-id": "1234EEE52E7",
+    "x-amz-id-2": "OZqooOkGW7YCLddGKHw0SgXn6a/SFcvROC82Bx+xAH/xotGz0pxpBNFeE58+gzx4l+02CZdQhf054="
+  },
+  "s3": {
+    "s3SchemaVersion": "1.0",
+    "configurationId": "LogsPublisher",
+    "bucket": {
+      "name": "second-s3-bucket",
+      "ownerIdentity": {
+        "principalId": "principalId"
+      },
+      "arn": "arn:aws:s3:::second-s3-bucket"
+    },
+    "object": {
+      "key": "us-east-1/some/other/folder/second-log-file.gz",
+      "size": 687170,
+      "eTag": "d8142f0f5993b3b77581582e5fa83f62",
+      "sequencer": "0056D7DBAFEEBD7176"
+    }
+  }
+}
+]}
